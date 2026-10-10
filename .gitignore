@@ -36,3 +36,9 @@
 ehthumbs.db
 Thumbs.db
 
+# Local IDE settings and build output
+.idea/
+*.iml
+out/
+target/
+
