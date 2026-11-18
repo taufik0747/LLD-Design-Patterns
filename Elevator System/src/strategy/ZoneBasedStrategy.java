@@ -9,10 +9,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class ZoneBasedStrategy implements DispatchStrategy {
+public class ZoneBasedStrategy implements DispatchStrategy {
     private final Map<Integer, Integer> zoneAssignments;
 
     public ZoneBasedStrategy(int totalFloors, int numElevators) {
+        if(totalFloors<1 || numElevators<1)throw new IllegalArgumentException("Positive counts required");
         this.zoneAssignments = new HashMap<>();
         int floorsPerZone = totalFloors / numElevators;
         int remainder = totalFloors % numElevators;

@@ -15,28 +15,32 @@ public class Floor {
         this.display = new Display(0); // Floor display, not tied to specific elevator
     }
 
-    public void pressUpButton() {
+    public synchronized void pressUpButton() {
         this.upButtonPressed = true;
     }
 
-    public void pressDownButton() {
+    public synchronized void pressDownButton() {
         this.downButtonPressed = true;
     }
 
-    public void resetButtons() {
+    public synchronized void resetButtons() {
         this.upButtonPressed = false;
         this.downButtonPressed = false;
     }
 
+    public synchronized void resetButton(enums.Direction direction) {
+        if(direction==enums.Direction.UP)upButtonPressed=false;
+        if(direction==enums.Direction.DOWN)downButtonPressed=false;
+    }
     public int getFloorNumber() {
         return floorNumber;
     }
 
-    public boolean isUpButtonPressed() {
+    public synchronized boolean isUpButtonPressed() {
         return upButtonPressed;
     }
 
-    public boolean isDownButtonPressed() {
+    public synchronized boolean isDownButtonPressed() {
         return downButtonPressed;
     }
 

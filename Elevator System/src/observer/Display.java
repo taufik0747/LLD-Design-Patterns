@@ -1,34 +1,17 @@
 package observer;
-
 import enums.Direction;
-
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+/** Id 0 is a hall panel showing all observed cars. */
 public class Display implements ElevatorObserver {
+    public record Snapshot(int floor,Direction direction) { }
     private final int elevatorId;
-    private int currentFloor;
-    private Direction currentDirection;
-
-    public Display(int elevatorId) {
-        this.elevatorId = elevatorId;
-        this.currentFloor = 1;
-        this.currentDirection = Direction.IDLE;
+    private final Map<Integer,Snapshot> snapshots=new ConcurrentHashMap<>();
+    public Display(int id) { elevatorId=id; }
+    public void onElevatorStateChanged(int id,int floor,Direction direction) {
+        if(elevatorId==0 || elevatorId==id)snapshots.put(id,new Snapshot(floor,direction));
     }
-
-    @Override
-    public void onElevatorStateChanged(int elevatorId, int floor, Direction direction) {
-        // Only update if this notification is for our elevator
-        if (this.elevatorId == elevatorId) {
-            this.currentFloor = floor;
-            this.currentDirection = direction;
-            show();
-        }
-    }
-
-    public void show() {
-        System.out.println("Display [Elevator " + elevatorId + "]: Floor " +
-                currentFloor + " | Direction: " + currentDirection);
-    }
-
-    public int getElevatorId() {
-        return elevatorId;
-    }
+    public Map<Integer,Snapshot> getSnapshots() { return Map.copyOf(snapshots); }
+    public void show() { System.out.println("Display: "+snapshots); }
+    public int getElevatorId() { return elevatorId; }
 }

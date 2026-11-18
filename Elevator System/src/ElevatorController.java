@@ -1,97 +1,38 @@
-import enums.Direction;
-import enums.ElevatorState;
+import enums.*;
 import models.Elevator;
-
-class ElevatorController implements Runnable {
+public class ElevatorController implements Runnable {
     private final Elevator elevator;
-    private volatile boolean running;
-
-    public ElevatorController(Elevator elevator) {
-        this.elevator = elevator;
-        this.running = true;
+    private final long travelMillis, doorMillis;
+    private volatile boolean running=true;
+    public ElevatorController(Elevator e) { this(e,500,1000); }
+    public ElevatorController(Elevator e,long travel,long door) {
+        if(travel<0 || door<0)throw new IllegalArgumentException("Negative delay");
+        elevator=e; travelMillis=travel; doorMillis=door;
     }
-
-    @Override
+    public void stop() { running=false; }
     public void run() {
-        while (running) {
-            if (elevator.hasRequests()) {
-                processRequests();
-            } else {
-                // No requests, go idle and wait
-                elevator.setDirection(Direction.IDLE);
-                elevator.setState(ElevatorState.IDLE);
-                try {
-                    Thread.sleep(100); // Avoid busy-waiting
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
+        try {
+            while(running && !Thread.currentThread().isInterrupted()) {
+                synchronized(elevator) {
+                    if(!elevator.hasRequests() && elevator.getState()!=ElevatorState.OUT_OF_SERVICE) {
+                        elevator.setDirection(Direction.IDLE); elevator.setState(ElevatorState.IDLE);
+                    }
                 }
+                elevator.awaitWork();
+                if(!running)break;
+                Thread.sleep(travelMillis);
+                synchronized(elevator) {
+                    if(!running || elevator.getState()==ElevatorState.OUT_OF_SERVICE)continue;
+                    int next=elevator.getNextStop(), current=elevator.getCurrentFloor();
+                    if(next<0)continue;
+                    if(next!=current)elevator.moveToFloor(current+Integer.signum(next-current));
+                    elevator.serveCurrentFloor();
+                }
+                if(elevator.isDoorOpen())try { Thread.sleep(doorMillis); } finally { elevator.closeDoor(); }
             }
-        }
-    }
-
-    public void stop() {
-        this.running = false;
-    }
-
-    private void processRequests() {
-        Direction dir = elevator.getDirection();
-
-        if (dir == Direction.IDLE) {
-            // Starting fresh: pick a direction based on available requests
-            if (elevator.hasUpRequests()) {
-                elevator.setDirection(Direction.UP);
-            } else if (elevator.hasDownRequests()) {
-                elevator.setDirection(Direction.DOWN);
-            }
-            return;
-        }
-
-        int nextStop = elevator.getNextStop();
-
-        if (nextStop == -1) {
-            // No more requests in current direction, try reversing
-            if (dir == Direction.UP && elevator.hasDownRequests()) {
-                elevator.setDirection(Direction.DOWN);
-            } else if (dir == Direction.DOWN && elevator.hasUpRequests()) {
-                elevator.setDirection(Direction.UP);
-            } else {
-                elevator.setDirection(Direction.IDLE);
-                elevator.setState(ElevatorState.IDLE);
-            }
-            return;
-        }
-
-        // Move toward the next stop, one floor at a time
-        int currentFloor = elevator.getCurrentFloor();
-        if (nextStop > currentFloor) {
-            elevator.moveToFloor(currentFloor + 1);
-        } else if (nextStop < currentFloor) {
-            elevator.moveToFloor(currentFloor - 1);
-        }
-
-        // Check if we've arrived at a requested floor
-        if (elevator.getCurrentFloor() == nextStop) {
-            serveFloor();
-        }
-
-        try {
-            // Simulate travel time between floors
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void serveFloor() {
-        elevator.openDoor();
-        try {
-            // Simulate passengers entering/exiting
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        elevator.closeDoor();
-        elevator.removeCurrentFloorFromRequests();
+        } catch(InterruptedException e) { Thread.currentThread().interrupt(); }
+        finally { elevator.closeDoor(); if(elevator.getState()!=ElevatorState.OUT_OF_SERVICE) {
+            elevator.setDirection(Direction.IDLE); elevator.setState(ElevatorState.IDLE);
+        } }
     }
 }
